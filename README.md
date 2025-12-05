@@ -1,8 +1,8 @@
 # 🖥️ Minimal C++ HTTP Server (Sockets)
 
-This is a minimal web server written in C++ that uses the standard **POSIX Sockets API** to demonstrate the fundamental server lifecycle: **socket creation, binding, listening, and serving a static file** (`index.html`).
+This is a **website template** featuring a minimal web server written in C++ that uses the standard **POSIX Sockets API** to demonstrate the fundamental server lifecycle: **socket creation, binding, listening, and serving a static file** (`index.html`).
 
-It's designed to be a simple, educational example for those beginning C++ network programming.
+It's designed as a starter template for building websites with a C++ backend, perfect for those beginning C++ network programming or looking for a simple foundation to build upon.
 
 ---
 
@@ -55,6 +55,10 @@ After successfully running the server, you can access the served content (**inde
 - Localhost: `http://localhost:8080`  
 - Loopback IP: `http://127.0.0.1:8080`
 
-## 5. Contribution
+## 5. Getting Started
 
-If you're exploring C++ network programming, feel free to fork or clone this repository and contribute!
+If you want to work with this template, just clone or fork it and get started:
+
+```bash
+git clone <repository-url>
+```
