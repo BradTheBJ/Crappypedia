@@ -4,13 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crappypedia</title>
+    <link rel="stylesheet" href="/frontend/styles/main.css">
 </head>
 <body>
-    <h1>Crappypedia</h1>
-    <p>The Wikipedia client that no one asked for.</p>
+    <div class="container">
+        <h1>Crappypedia</h1>
+        <p class="subtitle">The Wikipedia client that no one asked for.</p>
 
-    <input id="searchInput" type="search" placeholder="Search..." />
-    <button id="searchBtn">Search</button>
+        <div class="search-container">
+            <input id="searchInput" type="search" placeholder="Search for something (or don't, I don't care)..." />
+            <button id="searchBtn">Search</button>
+        </div>
+
+        <div class="warning-box">
+            <h3>⚠️ Important Disclaimers (because we're too lazy to check)</h3>
+            <ul>
+                <li>This doesn't check if the Wikipedia page actually exists</li>
+                <li>We don't validate spelling, grammar, or if you're even searching for real things</li>
+                <li>Type "asdfghjkl" and we'll still send you to Wikipedia like it's a real search</li>
+                <li>You're basically using a fancy redirect button. That's it.</li>
+            </ul>
+        </div>
+    </div>
 
     <script src="/frontend/services/search.js"></script>
 </body>

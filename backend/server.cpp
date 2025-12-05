@@ -100,11 +100,6 @@ int main(int argc, char const *argv[]) {
     // ============================================
     // The server requires a port number as a command-line argument
     // argc[0] is the program name, argc[1] should be the port
-    // ============================================
-    // STEP 1: Validate command-line arguments
-    // ============================================
-    // The server requires a port number as a command-line argument
-    // argc[0] is the program name, argc[1] should be the port
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <port>\n";
         return 1;
@@ -118,27 +113,12 @@ int main(int argc, char const *argv[]) {
     // SOCK_STREAM: TCP (reliable, connection-oriented)
     // 0: Let the system choose the protocol (TCP for SOCK_STREAM)
     // Returns a file descriptor (server_fd) or -1 on error
-    // ============================================
-    // STEP 2: Create a socket
-    // ============================================
-    // socket() creates an endpoint for communication
-    // AF_INET: IPv4 protocol family
-    // SOCK_STREAM: TCP (reliable, connection-oriented)
-    // 0: Let the system choose the protocol (TCP for SOCK_STREAM)
-    // Returns a file descriptor (server_fd) or -1 on error
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
-        perror("socket");  // Print error message
-        perror("socket");  // Print error message
+        perror("socket");
         return 1;
     }
 
-    // ============================================
-    // STEP 3: Configure socket options
-    // ============================================
-    // SO_REUSEADDR allows the socket to reuse the address/port immediately
-    // after the server is closed, without waiting for the OS timeout.
-    // This is useful during development to avoid "Address already in use" errors.
     // ============================================
     // STEP 3: Configure socket options
     // ============================================
@@ -156,19 +136,7 @@ int main(int argc, char const *argv[]) {
     // STEP 4: Set up server address structure
     // ============================================
     // sockaddr_in is a structure that holds IPv4 address and port information
-    // ============================================
-    // STEP 4: Set up server address structure
-    // ============================================
-    // sockaddr_in is a structure that holds IPv4 address and port information
     struct sockaddr_in address;
-    std::memset(&address, 0, sizeof(address));  // Zero out the structure
-    
-    address.sin_family = AF_INET;                // IPv4 protocol family
-    address.sin_addr.s_addr = INADDR_ANY;        // Listen on all available network interfaces
-                                                 // (0.0.0.0 means accept connections from anywhere)
-
-    // Convert the port argument from string to integer
-    // We use try-catch to handle invalid input gracefully
     std::memset(&address, 0, sizeof(address));  // Zero out the structure
     
     address.sin_family = AF_INET;                // IPv4 protocol family
@@ -180,16 +148,11 @@ int main(int argc, char const *argv[]) {
     int port = 0;
     try {
         port = std::stoi(argv[1]);  // Convert string to integer
-        port = std::stoi(argv[1]);  // Convert string to integer
     } catch (...) {
         std::cerr << "Invalid port number.\n";
         close(server_fd);
         return 1;
     }
-    
-    // htons() converts the port from host byte order to network byte order
-    // (big-endian). This is required for network communication to ensure
-    // port numbers are interpreted correctly across different systems.
     
     // htons() converts the port from host byte order to network byte order
     // (big-endian). This is required for network communication to ensure
@@ -202,24 +165,12 @@ int main(int argc, char const *argv[]) {
     // bind() associates the socket with a specific IP address and port.
     // This tells the OS: "When someone connects to this IP:port, give me the connection"
     // We cast sockaddr_in* to sockaddr* because bind() expects the generic sockaddr type
-    // ============================================
-    // STEP 5: Bind socket to address and port
-    // ============================================
-    // bind() associates the socket with a specific IP address and port.
-    // This tells the OS: "When someone connects to this IP:port, give me the connection"
-    // We cast sockaddr_in* to sockaddr* because bind() expects the generic sockaddr type
     if (bind(server_fd, reinterpret_cast<struct sockaddr*>(&address), sizeof(address)) < 0) {
         perror("bind");
         close(server_fd);
         return 1;
     }
 
-    // ============================================
-    // STEP 6: Start listening for connections
-    // ============================================
-    // listen() marks the socket as a passive socket (one that will accept connections)
-    // The second argument (8) is the backlog: maximum number of pending connections
-    // that can be queued while waiting for accept()
     // ============================================
     // STEP 6: Start listening for connections
     // ============================================
@@ -242,24 +193,8 @@ int main(int argc, char const *argv[]) {
     
     socklen_t addrlen = sizeof(address);  // Size of address structure (required for accept())
     
-    // ============================================
-    // STEP 7: Main server loop - Accept and handle connections
-    // ============================================
-    // The server runs indefinitely, accepting one connection at a time
-    // In a production server, you'd typically use threads or async I/O for concurrency
-    
-    socklen_t addrlen = sizeof(address);  // Size of address structure (required for accept())
-    
     while (true) {
         std::cout << "Waiting for connections...\n";
-        
-        // ============================================
-        // STEP 7a: Accept incoming connection
-        // ============================================
-        // accept() blocks until a client connects to the server
-        // When a connection arrives, it creates a NEW socket (new_socket) for that connection
-        // The original server_fd continues listening for more connections
-        // Returns a new file descriptor for the client connection, or -1 on error
         
         // ============================================
         // STEP 7a: Accept incoming connection
@@ -272,104 +207,9 @@ int main(int argc, char const *argv[]) {
         if (new_socket < 0) {
             perror("accept");
             // Continue accepting after transient errors (don't crash the server)
-            // Continue accepting after transient errors (don't crash the server)
             continue;
         }
 
-        // ============================================
-        // STEP 7b: Read HTTP request from client
-        // ============================================
-        // recv() reads data sent by the client over the connection
-        // We allocate a 4KB buffer to hold the HTTP request
-        // HTTP requests are typically small (just headers and maybe a path)
-        char buffer[4096] = {0};  // Initialize buffer with zeros
-        ssize_t bytes_read = recv(new_socket, buffer, sizeof(buffer) - 1, 0);
-        
-        if (bytes_read < 0) {
-            perror("recv");
-            close(new_socket);  // Close this connection on error
-            continue;            // Continue to next connection
-        }
-
-        // Convert the received bytes into a C++ string for easier manipulation
-        std::string request(buffer, bytes_read);
-        
-        // Parse the HTTP request to extract the requested file path
-        // Example: "GET /index.html HTTP/1.1" -> "/index.html"
-        std::string request_path = parseRequestPath(request);
-
-        // ============================================
-        // STEP 7c: Determine file path to serve
-        // ============================================
-        // Map the HTTP request path to an actual file on disk
-        std::string file_path;
-        
-        if (request_path == "/" || request_path == "/index.html") {
-            // Root path or explicit index.html request -> serve the default HTML file
-            file_path = "backend/index.html";
-        } else {
-            // For other paths (e.g., "/style.css"), remove the leading "/"
-            // and serve from the project root directory
-            // Example: "/style.css" -> "style.css"
-            file_path = request_path.substr(1);
-        }
-
-        // ============================================
-        // STEP 7d: Read the requested file
-        // ============================================
-        // Attempt to open the file in binary mode (important for images, etc.)
-        // std::ios::in: Open for reading
-        // std::ios::binary: Don't translate line endings (important for binary files)
-        std::ifstream file(file_path, std::ios::in | std::ios::binary);
-        std::string response;  // Will hold the complete HTTP response
-        
-        if (!file.is_open()) {
-            // ============================================
-            // File not found - Send 404 Not Found response
-            // ============================================
-            // HTTP response format:
-            // Status line: "HTTP/1.1 404 Not Found\r\n"
-            // Headers: "Content-Type: ...\r\n", "Content-Length: ...\r\n", etc.
-            // Empty line: "\r\n" (separates headers from body)
-            // Body: The actual content
-            response = "HTTP/1.1 404 Not Found\r\n"
-                      "Content-Type: text/plain\r\n"
-                      "Content-Length: 13\r\n"      // Length of "404 Not Found"
-                      "Connection: close\r\n"        // Close connection after response
-                      "\r\n"                         // Empty line (end of headers)
-                      "404 Not Found";               // Response body
-        } else {
-            // ============================================
-            // File found - Read contents and build success response
-            // ============================================
-            // Read the entire file into a string using iterators
-            // istreambuf_iterator reads raw bytes, which works for both text and binary files
-            std::string content((std::istreambuf_iterator<char>(file)),
-                               std::istreambuf_iterator<char>());
-            file.close();  // Close the file when done reading
-
-            // Determine the appropriate Content-Type based on file extension
-            // This tells the browser how to interpret the file
-            std::string content_type = getContentType(file_path);
-            
-            // Build the HTTP 200 OK response with proper headers
-            // HTTP/1.1 200 OK: Request was successful
-            // Content-Type: Tells browser what type of content this is
-            // Content-Length: Size of the content in bytes (required for proper transfer)
-            // Connection: close: Close connection after this response
-            response = "HTTP/1.1 200 OK\r\n"
-                      "Content-Type: " + content_type + "\r\n"
-                      "Content-Length: " + std::to_string(content.size()) + "\r\n"
-                      "Connection: close\r\n"
-                      "\r\n"           // Empty line separates headers from body
-                      + content;        // Append the actual file content
-        }
-
-        // ============================================
-        // STEP 7e: Send HTTP response to client
-        // ============================================
-        // send() transmits the response string over the network connection
-        // The client (browser) will receive this and display/process the content
         // ============================================
         // STEP 7b: Read HTTP request from client
         // ============================================
@@ -474,16 +314,9 @@ int main(int argc, char const *argv[]) {
         // ============================================
         // After sending the response, close this specific connection
         // The server_fd remains open and continues listening for new connections
-        // ============================================
-        // STEP 7f: Close the connection
-        // ============================================
-        // After sending the response, close this specific connection
-        // The server_fd remains open and continues listening for new connections
         close(new_socket);
     }
 
-    // This code is never reached in the current implementation
-    // (the while loop runs forever), but it's good practice to include cleanup
     // This code is never reached in the current implementation
     // (the while loop runs forever), but it's good practice to include cleanup
     close(server_fd);
