@@ -3,9 +3,38 @@
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <sstream>
+#include <algorithm>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+// Helper function to get Content-Type based on file extension
+std::string getContentType(const std::string& path) {
+    if (path.size() >= 5 && path.substr(path.size() - 5) == ".html") {
+        return "text/html; charset=UTF-8";
+    } else if (path.size() >= 3 && path.substr(path.size() - 3) == ".js") {
+        return "application/javascript";
+    } else if (path.size() >= 4 && path.substr(path.size() - 4) == ".css") {
+        return "text/css";
+    } else if (path.size() >= 4 && path.substr(path.size() - 4) == ".png") {
+        return "image/png";
+    } else if ((path.size() >= 4 && path.substr(path.size() - 4) == ".jpg") ||
+               (path.size() >= 5 && path.substr(path.size() - 5) == ".jpeg")) {
+        return "image/jpeg";
+    }
+    return "text/plain";
+}
+
+// Helper function to parse the request path from HTTP request
+std::string parseRequestPath(const std::string& request) {
+    std::istringstream iss(request);
+    std::string method, path, version;
+    if (iss >> method >> path >> version) {
+        return path;
+    }
+    return "/";
+}
 
 int main(int argc, char const *argv[]) {
     // require port argument
@@ -60,25 +89,6 @@ int main(int argc, char const *argv[]) {
         return 1;
     }
 
-    // read index.html from the backend folder (FIXED PATH)
-    std::ifstream file("backend/index.html", std::ios::in | std::ios::binary);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open backend/index.html\n";
-        close(server_fd);
-        return 1;
-    }
-    std::string html((std::istreambuf_iterator<char>(file)),
-                     std::istreambuf_iterator<char>());
-    file.close();
-
-    // build HTTP response with proper headers and CRLFs
-    std::string response =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html; charset=UTF-8\r\n"
-        "Content-Length: " + std::to_string(html.size()) + "\r\n"
-        "Connection: close\r\n"
-        "\r\n" + html;
-
     std::cout << "Server is running on port " << port << "\n";
 
     // accept loop
@@ -92,7 +102,54 @@ int main(int argc, char const *argv[]) {
             continue;
         }
 
-        // send the prepared response
+        // read HTTP request
+        char buffer[4096] = {0};
+        ssize_t bytes_read = recv(new_socket, buffer, sizeof(buffer) - 1, 0);
+        if (bytes_read < 0) {
+            perror("recv");
+            close(new_socket);
+            continue;
+        }
+
+        std::string request(buffer, bytes_read);
+        std::string request_path = parseRequestPath(request);
+
+        // determine file path based on request
+        std::string file_path;
+        if (request_path == "/" || request_path == "/index.html") {
+            file_path = "backend/index.html";
+        } else {
+            // remove leading slash and serve from project root
+            file_path = request_path.substr(1);
+        }
+
+        // read the requested file
+        std::ifstream file(file_path, std::ios::in | std::ios::binary);
+        std::string response;
+        
+        if (!file.is_open()) {
+            // file not found - 404 response
+            response = "HTTP/1.1 404 Not Found\r\n"
+                      "Content-Type: text/plain\r\n"
+                      "Content-Length: 13\r\n"
+                      "Connection: close\r\n"
+                      "\r\n404 Not Found";
+        } else {
+            // read file contents
+            std::string content((std::istreambuf_iterator<char>(file)),
+                               std::istreambuf_iterator<char>());
+            file.close();
+
+            // build HTTP response with proper headers
+            std::string content_type = getContentType(file_path);
+            response = "HTTP/1.1 200 OK\r\n"
+                      "Content-Type: " + content_type + "\r\n"
+                      "Content-Length: " + std::to_string(content.size()) + "\r\n"
+                      "Connection: close\r\n"
+                      "\r\n" + content;
+        }
+
+        // send the response
         ssize_t sent = send(new_socket, response.c_str(), response.size(), 0);
         if (sent < 0) {
             perror("send");
